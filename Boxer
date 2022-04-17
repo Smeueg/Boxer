@@ -1,0 +1,218 @@
+#!/bin/bash
+# Boxer: A script to interactively toggle a selection with tabs
+
+# Variables
+opts=${1}
+tty=$(tty)
+chosen_tab=1
+chosen_line=1
+newline="
+"
+
+if [ ${$#} -eq 0 ]; then
+	echo "${$#}" >${tty}
+	printf '[\033[1;31mERROR\033[0m] One argument is required\n' >${tty}
+	exit 1
+fi
+
+[ "${TERM}" = "dumb" ] ||
+	color_tab="\033[1;31m"
+
+
+# Functions
+# Only change terminal settings if needed. Bash, Ksh, and Zsh doesn't need to.
+if [ "${BASH_VERSION}" ] || [ "${KSH_VERSION}" ]; then
+	read_char() { read -n1 input; }
+elif [ "${ZSH_VERSION}" ]; then
+	emulate sh
+	read_char() { read -k1 input; }
+else
+	stty_settings=$(stty -g)
+	stty -icanon
+	trap 'stty "${stty_settings}"; exit 130' INT
+	read_char() {
+		input=$(dd bs=1 count=1 2>&1)
+		input=${opts_input%${opts_input#?}}
+	}
+fi
+
+
+
+printn() {
+	# Print ${1}, ${2} times
+	i=0
+	tmp=
+	while [ ${i} -lt ${2} ]; do
+		tmp="${tmp}${1}"
+		i=$((i + 1))
+	done
+	printf '%b\n' "${tmp}"
+	unset tmp
+}
+
+
+get_row() {
+	# Get current row
+	printf '\r\033[6n'
+	read_char
+	read_char
+	while :; do
+		read_char
+		row="${row}${input}"
+		[ "${input}" = "R" ] && break
+	done
+	row=${row%%;*}
+	printf '\033[2K'
+}
+
+
+opts_setup() {
+	# Add boxes to every option
+	width=0
+	tabs=0
+	tab_width=0
+	for line in ${opts}; do
+		[ "${line}" ] || continue # Skip if line is empty
+		if ! [ "${line##== * ==}" ]; then
+			# If line is a tab
+			tmp="${tmp}${line}${newline}"
+			line=${line#==}
+			line=${line%==}
+			tabs_total=$((tabs_total + 1))
+			tab_width=$((tab_width + ${#line} + 3))
+		else
+			# If line isn't a tab
+			[ ${#line} -gt ${width} ] && width=${#line}
+			tmp="${tmp}[ ] ${line}${newline}"
+		fi
+	done
+	width=$((width + 12))
+	tab_width=$((tab_width + 1))
+	[ ${tab_width} -gt ${width} ] && width=${tab_width}
+	horizontal_border=$(printn "─" $((width - 4)))
+	border=$(printf "%${width}b\r" "│")
+	opts=${tmp}
+	unset line tmp
+}
+
+
+opts_print() {
+	idx_tab=0
+	idx_line=0
+	continue=" Continue "
+
+	for line in ${opts}; do
+		if ! [ "${line##== * ==}" ]; then
+			idx_tab=$((idx_tab + 1))
+			line=${line#== }
+			line=${line% ==}
+			[ ${idx_tab} -eq ${chosen_tab} ] && line="\033[7m${line}"
+			header="${header}${color_tab}${line}\033[0m ─ "
+			continue
+		fi
+		[ ${idx_tab} -ne ${chosen_tab} ] && continue
+
+		idx_line=$((idx_line + 1))
+		[ ${idx_line} -eq ${chosen_line} ] &&
+			line="\033[7m ${line} \033[0m"
+
+		output="${output}\033[2K${border}\r│ ${line}${newline}"
+	done
+	height=$((idx_line + 1))
+
+	if [ ${height} -eq ${chosen_line} ]; then
+		continue="\033[7m${continue}\033[0m"
+	fi
+
+
+	printf "\033[${row}H"
+	printf "\033[2K╭${horizontal_border}╮\r\033[2C ${header% }\n"
+	printf "\033[2K${border}\r│\n${output}\033[2K${border}\r│\n"
+	printf "\033[2K╰${horizontal_border}╯"
+	printf "\r\033[$((width / 2 - 6))C${continue}\n\033[J"
+	unset idx_line idx_tab continue header output line
+}
+
+
+opts_select() {
+	# Toggle option selection
+	idx_tab=0
+	idx_line=0
+	[ ${chosen_line} -eq ${height} ] && loop=false && return
+	for line in ${opts}; do
+		if ! [ "${line##== * ==}" ]; then
+		 	idx_tab=$((idx_tab + 1))
+			idx_line=0
+		 	tmp="${tmp}${line}${newline}"
+		 	continue
+		fi
+		idx_line=$((idx_line + 1))
+
+		if [ ${idx_tab} -eq ${chosen_tab} ] && [ ${idx_line} -eq ${chosen_line} ]; then
+			[ "${line%%\[X\]*}" ] && tmp="${tmp}[X]" || tmp="${tmp}[ ]"
+			line=${line#???}
+		fi
+
+		tmp="${tmp}${line}${newline}"
+	done
+	opts=${tmp}
+	unset tmp line idx_tab idx_line
+}
+
+
+handle_input() {
+	# handle keypress
+	read_char
+	if [ "${input}" = $(printf '\033') ]; then
+		# Arrow key shenanigans
+		read_char
+		read_char
+		case "${input}" in
+			"A") input="k" ;;
+			"B") input="j" ;;
+			"C") input="l" ;;
+			"D") input="h" ;;
+		esac
+	fi
+
+	case "${input}" in
+		"k") chosen_line=$((chosen_line - (chosen_line != 1))) ;;
+		"j") chosen_line=$((chosen_line + (chosen_line != height))) ;;
+		"h") if [ ${chosen_tab} -ne 1 ]; then
+				 chosen_tab=$((chosen_tab - 1))
+				 chosen_line=1
+			 fi
+			 ;;
+		"l")
+			if [ ${chosen_tab} -ne ${tabs_total} ]; then
+				chosen_tab=$((chosen_tab + 1))
+				chosen_line=1
+			fi
+			;;
+		"q") loop=false; opts="" ;;
+		""|" "|${newline}|) IFS=${newline} opts_select;;
+	esac
+}
+
+
+opts_output() {
+	for opt in ${opts}; do
+		[ "${opt%%\[ \]*}" ] || continue
+		tmp="${tmp}${opt#\[X\] }${newline}"
+	done
+	printf '%s' "${tmp}"
+	unset opt tmp
+}
+
+
+get_row >${tty}
+IFS=${newline} opts_setup
+
+# Main loop
+while ${loop:-:}; do
+	IFS=${newline} opts_print >${tty}
+	handle_input
+done
+
+[ "${stty_settings+x}" ] && stty "${stty_settings}"
+IFS=${newline} opts_output
