@@ -7,6 +7,19 @@ Interactively select and deselect options in tabs
 
 # Sample Usage
 ```bash
+# Bootstrap / download 'Boxer'
+if ! [ -f ./Boxer ]; then
+	if command -v curl >/dev/null; then
+		curl -L https://raw.githubusercontent.com/Smeueg/Boxer/main/Boxer -o Boxer
+	elif command -v wget >/dev/null; then
+		wget https://raw.githubusercontent.com/Smeueg/Boxer/main/Boxer -O Boxer
+	else
+		echo "Error: Can't download boxer"
+		exit 1
+	fi
+fi
+
+
 opts="
 == First Tab ==
 option 1
