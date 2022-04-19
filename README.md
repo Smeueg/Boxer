@@ -1,6 +1,6 @@
 # Boxer
 A script to become a professional boxer.
-Interactively select and deselect options in tabs
+Add a UI to interactively select or deselect options for your scripts!
 
 ![Screenshot](./Screenshot.png)
 
