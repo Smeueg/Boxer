@@ -1,5 +1,5 @@
 # Boxer
-A script to become a profesional boxer.
+A script to become a professional boxer.
 Interactively select and deselect options in tabs
 
 ![Screenshot](./Screenshot.png)
