@@ -9,7 +9,7 @@ Add a UI to interactively select or deselect options for your scripts!
 Boxer only has one argument and that would be your choices.
 The choices get seperated by a newline, so each line would be it's seperate
 choice/tab. Boxer then outputs the chosen choices to stdout where you can
-capture it using subshells. A full example can be found in [here](https://github.com/Smeueg/Boxer/blob/main/Boxer)
+capture it using subshells. A full example can be found in [here](https://github.com/Smeueg/Boxer/blob/main/Sample.sh)
 
 A short example would be:
 ```bash
