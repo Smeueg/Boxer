@@ -1,54 +1,55 @@
 # Boxer
 A script to become a professional boxer.
 Add a UI to interactively select or deselect options for your scripts!
+![Example](./Example.gif)
 
-![Screenshot](./Screenshot.png)
+---
 
+## Usage
+Boxer only has one argument and that would be your choices.
+The choices get seperated by a newline, so each line would be it's seperate
+choice/tab. Boxer then outputs the chosen choices to stdout where you can
+capture it using subshells. A full example can be found in [here](https://github.com/Smeueg/Boxer/blob/main/Boxer)
 
-# Sample Usage
+A short example would be:
 ```bash
-# Bootstrap / download 'Boxer'
-if ! [ -f ./Boxer ]; then
-	if command -v curl >/dev/null; then
-		curl -L https://raw.githubusercontent.com/Smeueg/Boxer/main/Boxer -o Boxer
-	elif command -v wget >/dev/null; then
-		wget https://raw.githubusercontent.com/Smeueg/Boxer/main/Boxer -O Boxer
-	else
-		echo "Error: Can't download boxer"
-		exit 1
-	fi
-fi
-
-
 opts="
-== First Tab ==
-option 1
-option 2
-option 3
-== Second Tab ==
-AwesomeWM
+== Terminals ==
+XTerm
+Kitty
+Alacritty
+== Window Managers ==
 DWM
+AwesomeWM
 Qtile
-i3
 "
 
-run_opts() {
-	for opt in ${opts}; do
-		case "${opt}" in
-			"option 1") echo "You selected option 1" ;;
-			"option 2") echo "You selected option 2" ;;
-			"option 3") echo "You selected option 3" ;;
-			"AwesomeWM") echo "AwesomeWM is awesome, see what I did there?" ;;
-			"DWM") echo "It sucks less" ;;
-			"Qtile") echo "Woo Python!" ;;
-			"i3") echo "Yeah i3 is pretty nice" ;;
-		esac
-	done
-}
-
-newline="
-"
-
-opts=$(./Boxer "${opts}")
-IFS=${newline} run_opts
+Boxer "$opts"
 ```
+In this example, there are two tabs. "Terminals" and "Window Managers". Inside
+the "Terminals" tab, there are 3 options which are "Xterm", "Kitty", and
+"Alacritty". Inside the "Window Managers" tab, there are also 3 options which
+are "DWM", "AwesomeWM", and "Qtile". Say for example, the user picks "XTerm",
+"Kitty", and "AwesomeWM" Boxer then outputs the chosen output to stdout with a
+format similar to this:
+```
+== Terminals ==
+XTerm
+Kitty
+== Window Managers ==
+AwesomeWM
+```
+You can of course capture the output using a subshell (i.e. `$(Boxer "${opts}")`)
+and parse them either using a `while read` loop or a `for` loop like so:
+```bash
+while read line; do
+	case ${line} in
+		"some string") echo "something" ;;
+		"a different string") rm "some file" ;;
+	esac
+done <<EOF
+$(Boxer "${opts}")
+EOF
+```
+If you're using
+a `for` loop, don't forget to set the "$IFS" to a newline.
